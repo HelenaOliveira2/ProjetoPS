@@ -7,6 +7,7 @@
 #include "functions.h"
 #include <stdlib.h>
 #include <string.h>
+#include <sys/wait.h> // Necessário para wait()
 
 
 int ler_tarefa_binario(int id, Task *t) {
@@ -49,6 +50,77 @@ void executar_fcfs(Task tasks[], int n, double *turnaround_medio) {
 
     *turnaround_medio = total_turnaround / n;
 }
+
+void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround_medio) {
+    time_t inicio_global;
+    time(&inicio_global);
+
+    int processos_ativos = 0;
+    double total_turnaround = 0;
+
+    int pipes[n][2];  // um pipe por tarefa
+
+    for (int i = 0; i < n; i++) {
+        if (pipe(pipes[i]) < 0) {
+            perror("Erro ao criar pipe");
+            exit(1);
+        }
+
+        if (processos_ativos >= max_proc) {
+            wait(NULL);
+            processos_ativos--;
+        }
+
+        pid_t pid = fork();
+
+        if (pid < 0) {
+            perror("Erro ao criar fork");
+            exit(1);
+        }
+
+        if (pid == 0) {
+            // === FILHO ===
+            close(pipes[i][0]); // fecha leitura
+
+            printf("[Filho %d] A executar tarefa %d (%ds)\n",
+                   getpid(), tasks[i].id, tasks[i].duration);
+
+            sleep(tasks[i].duration);
+
+            time_t fim;
+            time(&fim);
+
+            double turnaround = difftime(fim, inicio_global);
+
+            // Envia o turnaround ao pai
+            write(pipes[i][1], &turnaround, sizeof(double));
+            close(pipes[i][1]);
+
+            exit(0);
+        } else {
+            // === PAI ===
+            close(pipes[i][1]); // fecha escrita
+            processos_ativos++;
+        }
+    }
+
+    // Esperar por todos os filhos
+    while (processos_ativos > 0) {
+        wait(NULL);
+        processos_ativos--;
+    }
+
+    // Ler todos os turnarounds
+    for (int i = 0; i < n; i++) {
+        double t;
+        read(pipes[i][0], &t, sizeof(double));
+        close(pipes[i][0]);
+        total_turnaround += t;
+    }
+
+    *turnaround_medio = total_turnaround / n;
+}
+
 
 void escrever_estatisticas(int total_tarefas, double turnaround_medio) {
     int fd = open("Estatisticas_Globais.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
