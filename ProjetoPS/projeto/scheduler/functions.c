@@ -119,6 +119,19 @@ void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround_med
     }
 
     *turnaround_medio = total_turnaround / n;
+
+    // os pipes são para se calcular bem o turnaround time, são tipo os fifos que o stor não chagou a dar, sem eles o turnaround está mal calculado
+}
+
+// Função de comparação para o qsort ordenar por duração crescente
+int comparar_tarefas(const void *a, const void *b) {
+    Task *t1 = (Task *)a;
+    Task *t2 = (Task *)b;
+    return (t1->duration - t2->duration);
+}
+
+void ordenar_sjf(Task tasks[], int n) {
+    qsort(tasks, n, sizeof(Task), comparar_tarefas);
 }
 
 
