@@ -18,10 +18,6 @@ void salvar_tarefa_binario(Task t) {
     
     if (fd < 0) {
         perror("Erro ao criar ficheiro da tarefa");
-        printf("ola oi");
-        printf("por favor dá");
-        printf("oiiiiiiiiiiiiiiiiii");
-        print("sou eu outra vez");
         return;
     }
 
