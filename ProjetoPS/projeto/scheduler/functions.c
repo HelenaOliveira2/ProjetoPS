@@ -16,7 +16,6 @@ int ler_tarefa_binario(int id, Task *t) {
     int fd = open(nome_ficheiro, O_RDONLY);
     if (fd < 0) {
         perror("Erro ao abrir ficheiro da tarefa!");
-        printf("A capi não esteve aqui hoje");
         return -1;
     }
 
@@ -32,17 +31,28 @@ int ler_tarefa_binario(int id, Task *t) {
 }
 
 void executar_fcfs(Task tasks[], int n, double *turnaround_medio) {
-    time_t inicio, fim;
     double total_turnaround = 0;
+    time_t inicio_global;
+    time(&inicio_global);
+
+    printf("DEBUG: Inicio global marcado\n");
 
     for (int i = 0; i < n; i++) {
         printf("A executar tarefa %d (Duração: %ds)...\n", tasks[i].id, tasks[i].duration);
 
-        time(&inicio);
+        time_t antes_sleep;
+        time(&antes_sleep);
+        printf("DEBUG: Antes do sleep, passaram %.2f s desde o início\n", 
+               difftime(antes_sleep, inicio_global));
+
         sleep(tasks[i].duration);  // simula execução
+        time_t fim;
         time(&fim);
 
-        double turnaround = difftime(fim, inicio);
+        printf("DEBUG: Depois do sleep, passaram %.2f s desde o início\n", 
+               difftime(fim, inicio_global));
+
+        double turnaround = difftime(fim, inicio_global);
         printf("Tarefa %d concluída. Turnaround: %.2f s\n",tasks[i].id, turnaround);
         total_turnaround += turnaround;
     }
