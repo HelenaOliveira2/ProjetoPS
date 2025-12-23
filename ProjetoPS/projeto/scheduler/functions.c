@@ -35,22 +35,12 @@ void executar_fcfs(Task tasks[], int n, double *turnaround_medio) {
     time_t inicio_global;
     time(&inicio_global);
 
-    printf("DEBUG: Inicio global marcado\n");
-
     for (int i = 0; i < n; i++) {
         printf("A executar tarefa %d (Duração: %ds)...\n", tasks[i].id, tasks[i].duration);
-
-        time_t antes_sleep;
-        time(&antes_sleep);
-        printf("DEBUG: Antes do sleep, passaram %.2f s desde o início\n", 
-               difftime(antes_sleep, inicio_global));
 
         sleep(tasks[i].duration);  // simula execução
         time_t fim;
         time(&fim);
-
-        printf("DEBUG: Depois do sleep, passaram %.2f s desde o início\n", 
-               difftime(fim, inicio_global));
 
         double turnaround = difftime(fim, inicio_global);
         printf("Tarefa %d concluída. Turnaround: %.2f s\n",tasks[i].id, turnaround);
