@@ -16,7 +16,7 @@ int ler_tarefa_binario(int id, Task *t) {
     int fd = open(nome_ficheiro, O_RDONLY);
     if (fd < 0) {
         perror("Erro ao abrir ficheiro da tarefa!");
-        printf("A capi esteve aqui");
+        printf("A capi não esteve aqui hoje");
         return -1;
     }
 
