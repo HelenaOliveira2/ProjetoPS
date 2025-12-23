@@ -21,6 +21,7 @@ void salvar_tarefa_binario(Task t) {
         printf("ola oi");
         printf("por favor dá");
         printf("oiiiiiiiiiiiiiiiiii");
+        print("sou eu outra vez");
         return;
     }
 
