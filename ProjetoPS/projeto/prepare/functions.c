@@ -27,7 +27,6 @@ void salvar_tarefa_binario(Task t) {
         perror("Erro ao escrever dados binários");
     }
 
-
     close(fd);
     printf("Tarefa %d (Duração: %ds) guardada com sucesso.\n", t.id, t.duration);
 }

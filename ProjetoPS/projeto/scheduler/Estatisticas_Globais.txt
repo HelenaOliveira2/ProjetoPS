@@ -1,2 +1,2 @@
 Total Tarefas Executadas: 5
-Turnaround Time Médio: 5.60 segundos
+Turnaround Time Médio: 8.60 segundos

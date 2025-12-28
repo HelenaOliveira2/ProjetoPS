@@ -49,7 +49,11 @@ int main(int argc, char *argv[]) {
 
     // --- MODO 0: SEM OTIMIZAÇÕES (FCFS SEQUENCIAL) ---
     if (modo == 0) {
-        printf("Executando Modo Base (FCFS Sequencial)...\n");
+        if (max_proc) {
+            printf("Registe apenas 2 argumentos.\n");
+            return -1;
+        }
+        printf("A executar Modo Base (FCFS Sequencial)...\n");
         executar_fcfs(tasks, num_tasks, &turnaround_medio);
     }
 
@@ -59,13 +63,17 @@ int main(int argc, char *argv[]) {
             printf("O número de processos paralelos deve ser maior que zero.\n");
             return -1;
         }
-        printf("Executando com otimização de Forks (N=%d)...\n", max_proc);
+        printf("A executar com otimização de Forks (N=%d)...\n", max_proc);
         executar_paralelo(tasks, num_tasks, max_proc, &turnaround_medio);
     }
 
     // --- MODO 2: OTIMIZAÇÃO SJF (SEQUENCIAL) ---
     if (modo == 2) {
-        printf("Executando com otimização SJF (Sequencial)...\n");
+        if (max_proc) {
+            printf("Registe apenas 2 argumentos.\n");
+            return -1;
+        }
+        printf("A executar com otimização SJF (Sequencial)...\n");
         ordenar_sjf(tasks, num_tasks); // Primeiro ordena
         executar_fcfs(tasks, num_tasks, &turnaround_medio); // Depois executa sequencial
     }
@@ -76,7 +84,7 @@ int main(int argc, char *argv[]) {
             printf("O número de processos paralelos deve ser maior que zero.\n");
             return -1;
         }
-        printf("Executando com todas as otimizações (SJF + Forks N=%d)...\n", max_proc);
+        printf("A executar com todas as otimizações (SJF + Forks N=%d)...\n", max_proc);
         ordenar_sjf(tasks, num_tasks); // Primeiro ordena
         executar_paralelo(tasks, num_tasks, max_proc, &turnaround_medio); // Depois executa paralelo
     }
