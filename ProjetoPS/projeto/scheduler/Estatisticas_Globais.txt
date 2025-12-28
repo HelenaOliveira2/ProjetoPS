@@ -1,2 +1,15 @@
-Total Tarefas Executadas: 5
-Turnaround Time Médio: 5.60 segundos
+--- Em execução FCFS sequencial ---
+Total Tarefas Executadas: 3
+Turnaround Time Médio: 7.67 segundos
+--- Em execução FCFS paralelo ---
+Total Tarefas Executadas: 3
+Turnaround Time Médio: 5.00 segundos
+--- Em execução SJF sequencial ---
+Total Tarefas Executadas: 3
+Turnaround Time Médio: 6.33 segundos
+--- Em execução SJF paralelo ---
+Total Tarefas Executadas: 3
+Turnaround Time Médio: 4.67 segundos
+--- Em execução FCFS paralelo ---
+Total Tarefas Executadas: 3
+Turnaround Time Médio: 4.67 segundos

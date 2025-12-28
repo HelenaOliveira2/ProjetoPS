@@ -81,8 +81,8 @@ int main(int argc, char *argv[]) {
         executar_paralelo(tasks, num_tasks, max_proc, &turnaround_medio); // Depois executa paralelo
     }
 
-    // 5. Guardar estatísticas finais
-    escrever_estatisticas(num_tasks, turnaround_medio);
+    // Guardar estatísticas finais
+    escrever_estatisticas(num_tasks, turnaround_medio, modo);
 
     return 0;
 }
