@@ -56,16 +56,21 @@ void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround_med
     time(&inicio_global);
 
     int processos_ativos = 0;
-    double total_turnaround = 0;
+    double total_turnaround = 0.0;
 
-    int pipes[n][2];  // um pipe por tarefa
+    // Um pipe por tarefa
+    int pipes[n][2];
+    pid_t pids[n];
 
     for (int i = 0; i < n; i++) {
+
+        // Cria pipe
         if (pipe(pipes[i]) < 0) {
             perror("Erro ao criar pipe");
             exit(1);
         }
 
+        // Limita paralelismo
         if (processos_ativos >= max_proc) {
             wait(NULL);
             processos_ativos--;
@@ -74,15 +79,15 @@ void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround_med
         pid_t pid = fork();
 
         if (pid < 0) {
-            perror("Erro ao criar fork");
+            perror("Erro no fork");
             exit(1);
         }
 
         if (pid == 0) {
-            // === FILHO ===
+            // ===== PROCESSO FILHO =====
             close(pipes[i][0]); // fecha leitura
 
-            printf("[Filho %d] A executar tarefa %d (%ds)\n",
+            printf("[PID %d] A executar tarefa %d (Duração: %ds)...\n",
                    getpid(), tasks[i].id, tasks[i].duration);
 
             sleep(tasks[i].duration);
@@ -92,36 +97,39 @@ void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround_med
 
             double turnaround = difftime(fim, inicio_global);
 
-            // Envia o turnaround ao pai
-            write(pipes[i][1], &turnaround, sizeof(double));
+            // Envia turnaround ao pai
+            if (write(pipes[i][1], &turnaround, sizeof(double)) != sizeof(double)) {
+                perror("Erro ao escrever no pipe");
+            }
+
             close(pipes[i][1]);
 
+            printf("[PID %d] Tarefa %d concluída. Turnaround: %.2f s\n",
+                   getpid(), tasks[i].id, turnaround);
+
             exit(0);
-        } else {
-            // === PAI ===
-            close(pipes[i][1]); // fecha escrita
-            processos_ativos++;
         }
+
+        // ===== PROCESSO PAI =====
+        pids[i] = pid;
+        close(pipes[i][1]); // fecha escrita
+        processos_ativos++;
     }
 
-    // Esperar por todos os filhos
-    while (processos_ativos > 0) {
-        wait(NULL);
-        processos_ativos--;
-    }
-
-    // Ler todos os turnarounds
+    // Espera todos os filhos e recolhe resultados
     for (int i = 0; i < n; i++) {
+        waitpid(pids[i], NULL, 0);
+
         double t;
-        read(pipes[i][0], &t, sizeof(double));
+        if (read(pipes[i][0], &t, sizeof(double)) > 0) {
+            total_turnaround += t;
+        }
+
         close(pipes[i][0]);
-        total_turnaround += t;
     }
 
     *turnaround_medio = total_turnaround / n;
-
-    // os pipes são para se calcular bem o turnaround time, são tipo os fifos que o stor não chagou a dar, sem eles o turnaround está mal calculado
-}  // mudar para fifos
+}
 
 // Função de comparação para o qsort ordenar por duração crescente
 int comparar_tarefas(const void *a, const void *b) {
@@ -135,13 +143,21 @@ void ordenar_sjf(Task tasks[], int n) {
 }
 
 
-void escrever_estatisticas(int total_tarefas, double turnaround_medio) {
-    int fd = open("Estatisticas_Globais.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+void escrever_estatisticas(int total_tarefas, double turnaround_medio, int modo) {
+    int fd = open("Estatisticas_Globais.txt", O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd < 0) {
         perror("Erro ao criar ficheiro de estatísticas");
         return;
     }
-
+    if (modo == 0) {
+        dprintf(fd, "--- Em execução FCFS sequencial ---\n");
+    } else if (modo == 1) {
+        dprintf(fd, "--- Em execução FCFS paralelo ---\n");
+    } else if (modo == 2) {
+        dprintf(fd, "--- Em execução SJF sequencial ---\n");
+    }else if (modo == 3) {
+        dprintf(fd, "--- Em execução SJF paralelo ---\n");
+    }
     dprintf(fd, "Total Tarefas Executadas: %d\n", total_tarefas);
     dprintf(fd, "Turnaround Time Médio: %.2f segundos\n", turnaround_medio);
 
