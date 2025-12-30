@@ -6,11 +6,8 @@
 #include <errno.h>
 #include <fcntl.h> 
 #include "functions.h"
-#define FIFO_PATH "/tmp/my_fifo"
 
 int main(int argc, char *argv[]) {
-    int fifo_fd = -1;
-
     // 1. Verificar se o número de argumentos base é suficiente
     // Uso: ./scheduler <num_tasks> <modo> [max_proc]
     if (argc < 3) {
@@ -106,10 +103,6 @@ int main(int argc, char *argv[]) {
 
     // Guardar estatísticas finais
     escrever_estatisticas(num_tasks, turnaround_medio, modo);
-
-    if (fifo_fd != -1) {
-        close(fifo_fd);
-    }
 
     return 0;
 }
