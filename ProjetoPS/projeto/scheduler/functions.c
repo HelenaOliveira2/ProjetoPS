@@ -58,21 +58,43 @@ void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround_med
     int processos_ativos = 0;
     double total_turnaround = 0.0;
 
-    // Um pipe por tarefa
-    int pipes[n][2];
-    pid_t pids[n];
+    // 1. Alocação Dinâmica (Para evitar Stack Overflow)
+    int *fds_leitura = malloc(n * sizeof(int));
+    pid_t *pids = malloc(n * sizeof(pid_t));
+    
+    // Alocar matriz de nomes para FIFOs
+    char **fifo_names = malloc(n * sizeof(char*));
+    for(int i=0; i<n; i++) fifo_names[i] = malloc(64 * sizeof(char));
+
+    if (!fds_leitura || !pids || !fifo_names) {
+        perror("Erro de memória");
+        exit(1);
+    }
 
     for (int i = 0; i < n; i++) {
+        // 2. Definir o nome do FIFO (CORREÇÃO CRÍTICA)
+        // Usamos o PID do pai e o índice para garantir unicidade
+        snprintf(fifo_names[i], 64, "/tmp/fifo_%d_%d", getpid(), i);
 
-        // Cria pipe
-        if (pipe(pipes[i]) < 0) {
-            perror("Erro ao criar pipe");
+        // 3. Criar o FIFO
+        if (mkfifo(fifo_names[i], 0666) < 0) {
+            if (errno != EEXIST) {
+                perror("Erro ao criar FIFO");
+                exit(1);
+            }
+        }
+
+        // 4. Abrir FIFO no Pai (Non-blocking logic with O_RDWR)
+        fds_leitura[i] = open(fifo_names[i], O_RDWR);
+        if (fds_leitura[i] < 0) {
+            perror("Erro ao abrir FIFO no pai");
             exit(1);
         }
 
-        // Limita paralelismo
+        // 5. Limita paralelismo
         if (processos_ativos >= max_proc) {
-            wait(NULL);
+            // Espera por QUALQUER filho terminar para libertar uma "vaga"
+            wait(NULL); 
             processos_ativos--;
         }
 
@@ -85,7 +107,12 @@ void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround_med
 
         if (pid == 0) {
             // ===== PROCESSO FILHO =====
-            close(pipes[i][0]); // fecha leitura
+            close(fds_leitura[i]); // Fecha leitura herdada
+
+            // Libertar memória do pai no filho (boa prática, opcional aqui mas bom para valgrind)
+            free(fds_leitura);
+            free(pids);
+            // (Nota: o filho tem a sua cópia, não afeta o pai)
 
             printf("[PID %d] A executar tarefa %d (Duração: %ds)... \n",
                    getpid(), tasks[i].id, tasks[i].duration);
@@ -97,38 +124,60 @@ void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround_med
 
             double turnaround = difftime(fim, inicio_global);
 
-            // Envia turnaround ao pai
-            if (write(pipes[i][1], &turnaround, sizeof(double)) != sizeof(double)) {
-                perror("Erro ao escrever no pipe");
+            // Abre FIFO para escrita
+            int fd_escrita = open(fifo_names[i], O_WRONLY);
+            if (fd_escrita < 0) {
+                perror("Erro filho ao abrir FIFO");
+                exit(1);
             }
 
-            close(pipes[i][1]);
+            if (write(fd_escrita, &turnaround, sizeof(double)) != sizeof(double)) {
+                perror("Erro ao escrever no FIFO");
+            }
 
-            printf("[PID %d] Tarefa %d concluída. Turnaround: %.2f s\n",
-                   getpid(), tasks[i].id, turnaround);
+            close(fd_escrita);
+            
+            // Libertar string do nome no filho
+            for(int k=0; k<n; k++) free(fifo_names[k]);
+            free(fifo_names);
 
+            printf("[PID %d] Tarefa %d concluída.\n", getpid(), tasks[i].id);
             exit(0);
         }
 
         // ===== PROCESSO PAI =====
         pids[i] = pid;
-        close(pipes[i][1]); // fecha escrita
         processos_ativos++;
     }
 
-    // Espera todos os filhos e recolhe resultados
+    // 6. Espera final e recolha de resultados
     for (int i = 0; i < n; i++) {
-        waitpid(pids[i], NULL, 0);
+        // Tentamos esperar pelo PID específico.
+        // Se o wait(NULL) lá em cima já o tiver apanhado, waitpid retorna -1.
+        // Isso não é problema para ler o FIFO, pois os dados estão buffered no kernel.
+        waitpid(pids[i], NULL, 0); 
 
-        double t;
-        if (read(pipes[i][0], &t, sizeof(double)) > 0) {
+        double t = 0;
+        ssize_t bytes = read(fds_leitura[i], &t, sizeof(double));
+        
+        if (bytes == sizeof(double)) {
             total_turnaround += t;
+        } else {
+            // Se falhar a leitura, pode ser problemático, mas num lab simples aceita-se
+            fprintf(stderr, "Aviso: Não foi possível ler turnaround da tarefa %d\n", tasks[i].id);
         }
 
-        close(pipes[i][0]);
+        close(fds_leitura[i]);
+        unlink(fifo_names[i]); // Apaga o ficheiro
     }
 
     *turnaround_medio = total_turnaround / n;
+
+    // 7. Limpeza de memória
+    free(fds_leitura);
+    free(pids);
+    for(int i=0; i<n; i++) free(fifo_names[i]);
+    free(fifo_names);
 }
 
 // Função de comparação para o qsort ordenar por duração crescente

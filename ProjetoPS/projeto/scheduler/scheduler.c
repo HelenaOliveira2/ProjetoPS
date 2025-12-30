@@ -1,8 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h> 
 #include "functions.h"
+#define FIFO_PATH "/tmp/my_fifo"
 
 int main(int argc, char *argv[]) {
+    int fifo_fd = -1;
 
     // 1. Verificar se o número de argumentos base é suficiente
     // Uso: ./scheduler <num_tasks> <modo> [max_proc]
@@ -18,24 +25,40 @@ int main(int argc, char *argv[]) {
 
     int num_tasks = atoi(argv[1]);
     int modo = atoi(argv[2]);
-    
-    // Lê max_proc se existir, senão assume 1
-    int max_proc = (argc == 4) ? atoi(argv[3]) : 1;  //Se o utilizador passou 4 argumentos, então:lê o valor de max_proc do terminal. Caso contrário: usa 1 como valor padrão
+    int max_proc = 2; 
 
     double turnaround_medio = 0;
 
     printf("MODO: %d | Tarefas: %d\n", modo, num_tasks);
-    
+
     // 2. Verificar se o modo é válido
     if (modo < 0 || modo > 3) {
         printf("Modo inválido. Use 0: FCFS sequencial, 1: FCFS paralelo, 2: SJF sequencial, 3: SJF paralelo.\n");
         return -1;
     }
 
-    // 3. Caso o modo precise de forks (1 ou 3), verifica se o argumento foi passado
-    if ((modo == 1 || modo == 3) && argc < 4) {
-        printf("Para os modos com paralelismo (1 ou 3), é necessário fornecer o max_proc.\n");
-        return -1;
+    // 3. Validação de Argumentos Específica por Modo
+    if (modo == 0 || modo == 2) {
+    // Não podem ter o 4º argumento (max_proc)
+        if (argc > 3) {
+            printf("Erro: O Modo %d não aceita o argumento 'max_proc'.\n", modo);
+            printf("Uso correto: %s %d %d\n", argv[0], num_tasks, modo);
+            return -1;
+        }
+    } 
+    else if (modo == 1 || modo == 3) {
+        // Obrigatório ter o 4º argumento
+        if (argc < 4) {
+            printf("Erro: O Modo %d precisa do argumento <max_proc>.\n", modo);
+            printf("Uso correto: %s %d %d <max_proc>\n", argv[0], num_tasks, modo);
+            return -1;
+        }
+        max_proc = atoi(argv[3]);
+
+        if (max_proc <= 0) {
+            printf("Erro: max_proc deve ser maior que 0.\n");
+            return -1;
+        }
     }
 
     // 4. Carregar as tarefas (Comum a todos os modos)
@@ -49,10 +72,6 @@ int main(int argc, char *argv[]) {
 
     // --- MODO 0: SEM OTIMIZAÇÕES (FCFS SEQUENCIAL) ---
     if (modo == 0) {
-        if (max_proc) {
-            printf("Registe apenas 2 argumentos.\n");
-            return -1;
-        }
         printf("A executar Modo Base (FCFS Sequencial)...\n");
         executar_fcfs(tasks, num_tasks, &turnaround_medio);
     }
@@ -69,10 +88,6 @@ int main(int argc, char *argv[]) {
 
     // --- MODO 2: OTIMIZAÇÃO SJF (SEQUENCIAL) ---
     if (modo == 2) {
-        if (max_proc) {
-            printf("Registe apenas 2 argumentos.\n");
-            return -1;
-        }
         printf("A executar com otimização SJF (Sequencial)...\n");
         ordenar_sjf(tasks, num_tasks); // Primeiro ordena
         executar_fcfs(tasks, num_tasks, &turnaround_medio); // Depois executa sequencial
@@ -83,14 +98,18 @@ int main(int argc, char *argv[]) {
         if (max_proc <= 0) {
             printf("O número de processos paralelos deve ser maior que zero.\n");
             return -1;
-        }
-        printf("A executar com todas as otimizações (SJF + Forks N=%d)...\n", max_proc);
-        ordenar_sjf(tasks, num_tasks); // Primeiro ordena
-        executar_paralelo(tasks, num_tasks, max_proc, &turnaround_medio); // Depois executa paralelo
+    }
+    printf("A executar com todas as otimizações (SJF + Forks N=%d)...\n", max_proc);
+    ordenar_sjf(tasks, num_tasks); // Primeiro ordena
+    executar_paralelo(tasks, num_tasks, max_proc, &turnaround_medio); // Depois executa paralelo
     }
 
     // Guardar estatísticas finais
     escrever_estatisticas(num_tasks, turnaround_medio, modo);
+
+    if (fifo_fd != -1) {
+        close(fifo_fd);
+    }
 
     return 0;
 }

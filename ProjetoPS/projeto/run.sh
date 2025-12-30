@@ -1,114 +1,139 @@
 #!/bin/bash
-# Limpar estatísticas antigas para começar do zero
-if [ -f "Estatisticas_Globais.txt" ]; then
-    rm "Estatisticas_Globais.txt"
-fi
 
 # --- 1. CONFIGURAÇÃO ---
-
-# O Scheduler está dentro da pasta "scheduler"
 SRC_SCHED_DIR="scheduler"
-EXE_SCHED="scheduler_exec"
-
-# O Prepare está dentro da pasta "prepare"
 SRC_PREP_DIR="prepare"
-EXE_PREP="prepare_exec"
+STATS_FILE="Estatisticas_Globais.txt"
+fifo_path="/tmp/my_fifo"  # Caminho do FIFO
+TASKS_DIR="tasks_data"
 
-INPUT_FILE="function.txt"
-MAX_PROC=4
-NUM_TAREFAS_A_CRIAR=5
-NUM_PARALELO = 2
+# Nomes dos executáveis que os Makefiles geram
+EXE_SCHED="$SRC_SCHED_DIR/scheduler"
+EXE_PREP="$SRC_PREP_DIR/prepare"
+
+# Limpar estatísticas antigas para começar do zero
+if [ -f "$STATS_FILE" ]; then
+    rm "$STATS_FILE"
+fi
+
+# Limpar FIFO antigo se existir (para evitar erros de permissão/lixo)
+if [ -p "$FIFO_PATH" ]; then
+    rm "$FIFO_PATH"
+    echo "FIFO antigo removido."
+fi
+
+# Limpar e recriar pasta de tarefas
+if [ -d "$TASKS_DIR" ]; then
+    # Apaga apenas o conteúdo, não a pasta, para ser mais seguro
+    rm -f "$TASKS_DIR"/*.bin 2>/dev/null
+    echo "Tarefas antigas removidas de $TASKS_DIR."
+else
+    mkdir -p "$TASKS_DIR"
+    echo "Diretoria $TASKS_DIR criada."
+fi
+
+NUM_TASKS=5              # Número de tarefas que o scheduler vai processar
+NUM_PARALELO=2           # Número de processos paralelos
+NUM_TAREFAS_A_CRIAR=5    # Número de tarefas a gerar
 
 # --- 2. COMPILAÇÃO ---
+echo "==================================="
 echo "--- A Compilar ---"
+echo "==================================="
 
-# 2.1 Compilar o Scheduler (Incluindo o functions.c da pasta scheduler)
-if [ -d "$SRC_SCHED_DIR" ]; then
-    # Compila todos os .c dentro da pasta scheduler (*.c)
-    gcc -Wall "$SRC_SCHED_DIR"/*.c -o "$EXE_SCHED"
-    
-    if [ $? -ne 0 ]; then
-        echo "Erro na compilação do Scheduler!"
-        exit 1
-    fi
-    echo "Scheduler compilado."
-else
-    echo "Erro: Pasta $SRC_SCHED_DIR não encontrada!"
+echo " -> A compilar pasta: $SRC_SCHED_DIR"
+make -C "$SRC_SCHED_DIR"
+if [ $? -ne 0 ]; then
+    echo "ERRO: Falha no make do Scheduler."
     exit 1
 fi
 
-# 2.2 Compilar o Prepare (Incluindo o functions.c da pasta prepare)
-if [ -d "$SRC_PREP_DIR" ]; then
-    # Compila todos os .c dentro da pasta prepare
-    gcc -Wall "$SRC_PREP_DIR"/*.c -o "$EXE_PREP"
-    
-    if [ $? -ne 0 ]; then
-        echo "Erro na compilação do Prepare!"
-        exit 1
-    fi
-    echo "Prepare compilado."
-else
-    echo "Aviso: Pasta $SRC_PREP_DIR não encontrada."
+echo " -> A compilar pasta: $SRC_PREP_DIR"
+make -C "$SRC_PREP_DIR"
+if [ $? -ne 0 ]; then
+    echo "ERRO: Falha no make do Prepare."
     exit 1
 fi
 
-# --- 3. GERAR TAREFAS ---
-echo "A gerar $NUM_TAREFAS_A_CRIAR tarefas com o '$EXE_PREP'..."
+# --- 4. GERAR TAREFAS ---
+echo ""
+echo "==================================="
+echo "--- A Gerar Tarefas ---"
+echo "==================================="
 
-# Limpa/Cria o ficheiro de input vazio
-> "$INPUT_FILE"
-
-# Loop de 1 até NUM_TAREFAS_A_CRIAR
 for (( i=1; i<=NUM_TAREFAS_A_CRIAR; i++ ))
 do
-    # Gera um número aleatório entre 1 e 5 para o "num_task" (duração/tamanho)
     SIZE=$(( ( RANDOM % 5 ) + 1 ))
-
-    # 1. Executa o prepare para criar o ficheiro físico da tarefa
-    # Argumentos: ID (i) e NUM_TASK (SIZE)
     ./"$EXE_PREP" "$i" "$SIZE"
-
-    # 2. Adiciona a linha ao ficheiro function.txt para o scheduler ler
-    # Formato: ID DURAÇÃO
-    echo "$i $SIZE" >> "$INPUT_FILE"
-    
-    echo "   -> Criada Tarefa $i com  $SIZE s"
+    echo "   -> Criada Tarefa $i com $SIZE s"
 done
 
-echo "----------------------------------------"
-echo "A INICIAR TESTES (Modos 0 a 3)"
-echo "----------------------------------------"
+echo "Tarefas geradas com sucesso!"
 
-# Verifica se o executável existe
-if [ ! -f "./$EXE_SCHED" ]; then
-    echo "Erro: Executável não encontrado."
+# Verificar se o executável do scheduler existe
+if [ ! -f "$EXE_SCHED" ]; then
+    echo "ERRO: Executável '$EXE_SCHED' não encontrado."
     exit 1
 fi
 
-# Ciclo que vai de 0 a 3
-for MODO in {0..3}
+# --- 5. LOOP INTERATIVO ---
+echo ""
+echo "==================================="
+echo "Pronto para executar os modos!"
+echo "==================================="
+
+while true
 do
     echo ""
-    echo "A executar MODO $MODO..."
+    echo "========================================"
+    echo "         MENU DE SELEÇÃO"
+    echo "========================================"
+    echo "   0 - FCFS Sequencial"
+    echo "   1 - FCFS Paralelo (N=$NUM_PARALELO)"
+    echo "   2 - SJF Sequencial"
+    echo "   3 - SJF Paralelo (N=$NUM_PARALELO)"
+    echo "   4 - Ver Estatísticas e SAIR"
+    echo "========================================"
+    echo ""
     
-    # Lógica para decidir os argumentos
-    if [[ "$MODO" == "0" || "$MODO" == "2" ]]; then
-        # Modos Sequenciais (FCFS Seq / SJF Seq)
-        ./"$EXE_SCHED" "$MAX_PROC" "$MODO"
-        
-    else
-        # Modos Paralelos (FCFS Par / SJF Par)
-        # Passamos o MAX_PROC também como o "Num Paralelo"
-        ./"$EXE_SCHED" "$MAX_PROC" "$MODO" "$MAX_PROC"
+    read -p "Escolhe o modo (0-4): " MODO
+    
+    # Validação
+    if [[ ! "$MODO" =~ ^[0-4]$ ]]; then
+        echo ""
+        echo "ERRO: Opção inválida! Escolhe um número entre 0 e 4."
+        continue
     fi
+    
+    # Sair
+    if [[ "$MODO" == "4" ]]; then
+        echo ""
+        echo "A terminar o programa..."
+        break
+    fi
+    
+    # Executar o scheduler
+    if [[ "$MODO" == "0" || "$MODO" == "2" ]]; then
+        ./"$EXE_SCHED" "$NUM_TASKS" "$MODO"
+    else
+        ./"$EXE_SCHED" "$NUM_TASKS" "$MODO" "$NUM_PARALELO"
+    fi
+    
+    echo ""
+    echo "Modo $MODO concluído!"
+    echo ""
+    read -p "Pressiona ENTER para voltar ao menu..."
     
 done
 
-echo "----------------------------------------"
-echo "Execução terminada."
+# --- 8. RESULTADOS FINAIS ---
+echo ""
+echo "========================================"
+echo "      ESTATÍSTICAS FINAIS"
+echo "========================================"
 
-# --- 6. RESULTADOS ---
-if [ -f "Estatisticas_Globais.txt" ]; then
-    echo "Últimos registos em Estatisticas_Globais.txt:"
-    cat "Estatisticas_Globais.txt"
+if [ -f "$STATS_FILE" ]; then
+    cat "$STATS_FILE"
+else
+    echo "Aviso: Ficheiro '$STATS_FILE' não foi criado."
 fi
