@@ -4,7 +4,6 @@
 SRC_SCHED_DIR="scheduler"
 SRC_PREP_DIR="prepare"
 STATS_FILE="Estatisticas_Globais.txt"
-fifo_path="/tmp/my_fifo"  # Caminho do FIFO
 TASKS_DIR="tasks_data"
 
 # Nomes dos executáveis que os Makefiles geram
@@ -14,12 +13,6 @@ EXE_PREP="$SRC_PREP_DIR/prepare"
 # Limpar estatísticas antigas para começar do zero
 if [ -f "$STATS_FILE" ]; then
     rm "$STATS_FILE"
-fi
-
-# Limpar FIFO antigo se existir (para evitar erros de permissão/lixo)
-if [ -p "$FIFO_PATH" ]; then
-    rm "$FIFO_PATH"
-    echo "FIFO antigo removido."
 fi
 
 # Limpar e recriar pasta de tarefas
