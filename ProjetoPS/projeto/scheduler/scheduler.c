@@ -4,7 +4,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
-#include <fcntl.h>      // open, O_RDWR
+#include <fcntl.h> 
 #include "functions.h"
 #define FIFO_PATH "/tmp/my_fifo"
 
@@ -58,12 +58,6 @@ int main(int argc, char *argv[]) {
         if (max_proc <= 0) {
             printf("Erro: max_proc deve ser maior que 0.\n");
             return -1;
-        }
-
-        fifo_fd = open(FIFO_PATH, O_RDWR);
-        if (fifo_fd == -1) {
-            perror("Erro ao abrir FIFO");
-            exit(1);
         }
     }
 
