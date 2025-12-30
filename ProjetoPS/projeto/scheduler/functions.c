@@ -16,7 +16,7 @@ int ler_tarefa_binario(int id, Task *t) {
 
     int fd = open(nome_ficheiro, O_RDONLY);
     if (fd < 0) {
-        perror("Erro ao abrir ficheiro da tarefa!");
+        perror("Erro ao abrir ficheiro da tarefa! ");
         return -1;
     }
 
