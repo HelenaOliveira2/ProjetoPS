@@ -87,7 +87,7 @@ void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround_med
             // ===== PROCESSO FILHO =====
             close(pipes[i][0]); // fecha leitura
 
-            printf("[PID %d] A executar tarefa %d (Duração: %ds)...\n",
+            printf("[PID %d] A executar tarefa %d (Duração: %ds)... \n",
                    getpid(), tasks[i].id, tasks[i].duration);
 
             sleep(tasks[i].duration);
