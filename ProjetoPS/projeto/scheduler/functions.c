@@ -9,8 +9,6 @@
 #include <string.h>
 #include <sys/wait.h> // Necessário para wait()
 
-// --- Função Auxiliar para encontrar o ID da tarefa pelo PID ---
-// Como não temos pipes, o pai recebe apenas o PID do wait().
 // Temos de procurar qual era a tarefa associada a esse PID.
 int encontrar_id_tarefa(pid_t pid, pid_t pids[], Task tasks[], int n) {
     for (int i = 0; i < n; i++) {
@@ -43,16 +41,14 @@ int ler_tarefa_binario(int id, Task *t) {
 }
 
 void executar_fcfs(Task tasks[], int n, double *turnaround_medio) {
-    double total_turnaround = 0;
-    time_t inicio_global;
-    time(&inicio_global);
+    double total_turnaround = 0.0;
+    time_t inicio_global = time(NULL);
 
     for (int i = 0; i < n; i++) {
         printf("A executar tarefa %d (Duração: %ds)...\n", tasks[i].id, tasks[i].duration);
 
         sleep(tasks[i].duration);  // simula execução
-        time_t fim;
-        time(&fim);
+        time_t fim = time(NULL);
 
         double turnaround = difftime(fim, inicio_global);
         printf("Tarefa %d concluída. Turnaround: %.2f s\n",tasks[i].id, turnaround);
@@ -63,90 +59,62 @@ void executar_fcfs(Task tasks[], int n, double *turnaround_medio) {
 }
 
 void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround_medio) {
-    time_t inicio_global;
-    time(&inicio_global);
 
+    time_t inicio_global = time(NULL);
     int processos_ativos = 0;
     double total_turnaround = 0.0;
 
-    // Alocamos memória apenas para guardar os PIDs (para sabermos quem é quem)
     pid_t *pids = malloc(n * sizeof(pid_t));
     if (!pids) {
         perror("Erro de memória");
         exit(1);
     }
-    
-    // Inicializar PIDs a 0
-    for(int i=0; i<n; i++) pids[i] = 0;
 
-    for (int i = 0; i < n; i++) {
-        
-        // 1. Controlo de simultaneidade (max_proc)
-        if (processos_ativos >= max_proc) {
-            // Espera que QUALQUER filho termine
-            pid_t pid_concluido = wait(NULL);
-            
-            // Assim que o filho termina, tiramos o tempo
-            time_t fim;
-            time(&fim);
-            
-            if (pid_concluido > 0) {
-                double ta = difftime(fim, inicio_global);
-                total_turnaround += ta;
-                processos_ativos--;
-                
-                int id_task = encontrar_id_tarefa(pid_concluido, pids, tasks, n);
-                printf("[Pai] Tarefa %d (PID %d) terminou. Turnaround: %.2f s\n", id_task, pid_concluido, ta);
+    int i = 0;
+
+    while (i < n || processos_ativos > 0) {
+
+        // Criar novo processo se possível
+        if (i < n && processos_ativos < max_proc) {
+
+            pid_t pid = fork();
+            if (pid < 0) {
+                perror("Erro no fork");
+                exit(1);
             }
+
+            if (pid == 0) {
+                free(pids);
+                printf("A executar tarefa %d (Duração: %ds)...\n", tasks[i].id, tasks[i].duration);
+                sleep(tasks[i].duration);
+                exit(0);
+            }
+
+            // Processo pai
+            pids[i] = pid;
+            processos_ativos++;
+            i++;
         }
+        // Caso contrário, esperar por um filho
+        else {
 
-        // 2. Criar Processo
-        pid_t pid = fork();
+            pid_t pid_concluido = wait(NULL);
+            time_t fim = time(NULL);
 
-        if (pid < 0) {
-            perror("Erro no fork");
-            exit(1);
-        }
-
-        if (pid == 0) {
-            // ===== PROCESSO FILHO =====            
-            // Libertar memória do pai no filho
-            free(pids);
-
-            printf("[PID %d] A executar tarefa %d (Duração: %ds)... \n",
-                   getpid(), tasks[i].id, tasks[i].duration);
-
-            sleep(tasks[i].duration);
-            
-            // Sai com sucesso
-            exit(0);
-        }
-
-        // ===== PROCESSO PAI =====
-        pids[i] = pid; // Guardamos o PID para depois saber qual tarefa era
-        processos_ativos++;
-    }
-
-    // Esperar pelos processos restantes (os últimos a serem criados)
-    while (processos_ativos > 0) {
-        pid_t pid_concluido = wait(NULL);
-        
-        time_t fim;
-        time(&fim);
-
-        if (pid_concluido > 0) {
             double ta = difftime(fim, inicio_global);
             total_turnaround += ta;
             processos_ativos--;
 
             int id_task = encontrar_id_tarefa(pid_concluido, pids, tasks, n);
-            printf("[Pai] Tarefa %d (PID %d) terminou. Turnaround: %.2f s\n", id_task, pid_concluido, ta);
+            printf("[Pai] Tarefa %d (PID %d) terminou. Turnaround: %.2f s\n",
+                   id_task, pid_concluido, ta);
         }
     }
 
     *turnaround_medio = total_turnaround / n;
     free(pids);
 }
+
 
 // Função de comparação para o qsort ordenar por duração crescente
 int comparar_tarefas(const void *a, const void *b) {

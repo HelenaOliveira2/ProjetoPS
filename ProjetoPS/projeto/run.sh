@@ -15,16 +15,6 @@ if [ -f "$STATS_FILE" ]; then
     rm "$STATS_FILE"
 fi
 
-# Limpar e recriar pasta de tarefas
-if [ -d "$TASKS_DIR" ]; then
-    # Apaga apenas o conteúdo, não a pasta, para ser mais seguro
-    rm -f "$TASKS_DIR"/*.bin 2>/dev/null
-    echo "Tarefas antigas removidas de $TASKS_DIR."
-else
-    mkdir -p "$TASKS_DIR"
-    echo "Diretoria $TASKS_DIR criada."
-fi
-
 NUM_TASKS=5              # Número de tarefas que o scheduler vai processar
 NUM_PARALELO=2           # Número de processos paralelos
 NUM_TAREFAS_A_CRIAR=5    # Número de tarefas a gerar
