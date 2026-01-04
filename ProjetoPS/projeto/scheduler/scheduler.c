@@ -8,7 +8,7 @@
 #include "functions.h"
 
 int main(int argc, char *argv[]) {
-    // 1. Verificar se o número de argumentos base é suficiente
+    // Verificar se o número de argumentos base é suficiente
     // Uso: ./scheduler <num_tasks> <modo> [max_proc]
     if (argc < 3) {
         fprintf(stderr, "Uso: %s <num_tasks> <modo> [max_proc]\n", argv[0]);
@@ -28,13 +28,13 @@ int main(int argc, char *argv[]) {
 
     printf("MODO: %d | Tarefas: %d\n", modo, num_tasks);
 
-    // 2. Verificar se o modo é válido
+    // Verificar se o modo é válido
     if (modo < 0 || modo > 3) {
         printf("Modo inválido. Use 0: FCFS sequencial, 1: FCFS paralelo, 2: SJF sequencial, 3: SJF paralelo.\n");
         return -1;
     }
 
-    // 3. Validação de Argumentos Específica por Modo
+    // Validação de Argumentos Específica por Modo
     if (modo == 0 || modo == 2) {
     // Não podem ter o 4º argumento (max_proc)
         if (argc > 3) {
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // 4. Carregar as tarefas (Comum a todos os modos)
+    // Carregar as tarefas (Comum a todos os modos)
     Task tasks[num_tasks];
     for (int i = 0; i < num_tasks; i++) {
         if (ler_tarefa_binario(i + 1, &tasks[i]) < 0) {

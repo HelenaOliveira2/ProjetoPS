@@ -6,10 +6,8 @@ typedef struct task {
     int duration; // duração em segundos
 } Task;
 
-// Funções para o prepare
-void salvar_tarefa_binario(Task t);
-
 // Funções para o scheduler
+int encontrar_id_tarefa(pid_t pid, pid_t pids[], Task tasks[], int n);
 int ler_tarefa_binario(int id, Task *t);
 void executar_fcfs(Task tasks[], int n, double *turnaround_medio);  // Task tasks[] → array de tarefas carregadas da pasta tasks_data, n → número de tarefas no array
 void executar_paralelo(Task tasks[], int n, int max_proc, double *turnaround);
