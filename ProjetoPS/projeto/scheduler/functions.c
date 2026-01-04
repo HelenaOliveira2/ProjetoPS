@@ -176,7 +176,7 @@ void escrever_estatisticas(int total_tarefas, double turnaround_medio, int modo)
         dprintf(fd, "--- Em execução SJF paralelo ---\n");
     }
     dprintf(fd, "Total Tarefas Executadas: %d\n", total_tarefas);
-    dprintf(fd, "Turnaround Time Médio: %.2f segundos\n", turnaround_medio);
+    dprintf(fd, "Turnaround Time Médio: %.2f segundos \n", turnaround_medio);
 
     close(fd);
     printf("Estatísticas gravadas em 'Estatisticas_Globais.txt'\n");
